@@ -57,7 +57,7 @@ const uniqueById = (arr: Product[]) => {
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .limit(100) 
+        .limit(80) 
         .order(sortField, { ascending: sortDirection === 'asc' });
       if (error) throw error;
       setProducts(uniqueById(data || []));
@@ -74,7 +74,7 @@ const uniqueById = (arr: Product[]) => {
       const { data, error } = await supabase
         .from('categories')
         .select('*')
-        .limit(100) 
+        .limit(80) 
         .order('name');
       if (error) throw error;
       setCategories(data || []);
