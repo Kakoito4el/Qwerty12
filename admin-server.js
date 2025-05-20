@@ -268,4 +268,7 @@ app.listen(process.env.PORT || 10000, '0.0.0.0', () => {
   console.log(`Административный сервер работает на http://localhost:${process.env.PORT || 10000}`);
 });
 
+app.get('/', (req, res) => {
+  res.send('Админ-сервер работает!');
+});
 
