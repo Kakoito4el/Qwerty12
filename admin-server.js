@@ -9,9 +9,22 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.error('Error: Missing Supabase configuration in .env file')
   process.exit(1)
 }
-
+const allowedOrigins = [
+  'http://localhost:5173', // для локальной разработки
+  'https://qwerty12-umber.vercel.app' // твой продакшен сайт
+]
 const app = express()
-app.use(cors())
+app.use(cors({
+  origin: (origin, callback) => {
+    // Разрешить запросы от разрешённых источников
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      callback(new Error('CORS policy violation'))
+    }
+  },
+  credentials: true
+}))
 app.use(express.json())
 const PORT = process.env.PORT || 3001
 
