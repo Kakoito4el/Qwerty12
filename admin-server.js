@@ -264,8 +264,8 @@ app.post('/admin/products/batch', requireAdmin, async (req, res) => {
   }
 })
 
-app.listen(PORT, () => {
-  console.log(`✅ Admin server running on http://localhost:${PORT}`)
-})
+app.listen(process.env.PORT || 10000, '0.0.0.0', () => {
+  console.log(`Административный сервер работает на http://localhost:${process.env.PORT || 10000}`);
+});
 
 
