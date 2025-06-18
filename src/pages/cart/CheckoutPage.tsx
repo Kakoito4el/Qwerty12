@@ -6,6 +6,7 @@ import Input from '../../components/UI/Input';
 import { useCartStore } from '../../stores/cartStore';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { handleCheckout } from '../../lib/handleCheckout';
 
 const CheckoutPage: React.FC = () => {
   const { items, getTotal, clearCart } = useCartStore();
@@ -30,60 +31,28 @@ const CheckoutPage: React.FC = () => {
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
 
-const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault()
-  if (!user) {
-    navigate('/login')
-    return
-  }
-  setLoading(true)
-  setError(null)
-
-  try {
-    // Валидируем (примерно так, можно добавить свои проверки)
-    if (firstName !== user.first_name || lastName !== user.last_name || email !== user.email) {
-      throw new Error('Contact info must match your profile')
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!user) {
+      navigate('/login');
+      return;
     }
 
-    // Отправляем запрос на каждый товар
-    for (const item of items) {
-      const { error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id:     user.id,
-          product_id:  item.product.id,
-          quantity:    item.quantity,
-          total_price: +(item.product.price * item.quantity * 1.1).toFixed(2), // с налогом
-          status:      'placed',
-          shipping_info: {
-            address,
-            city,
-            state,
-            zip,
-            country
-          },
-          payment_info: {
-            method:      paymentMethod,
-            card_number: cardNumber,
-            cardholder:  cardName,
-            expiry, // MM/YY
-            cvv
-          }
-        })
+    setLoading(true);
+    setError(null);
 
-      if (orderError) throw orderError
+    try {
+      const orderId = await handleCheckout(user.id, items); // ✅ вызов handleCheckout
+      console.log('✔️ Order created:', orderId);
+      clearCart();
+      navigate('/orders/confirmation');
+    } catch (err: any) {
+      console.error('Checkout error:', err);
+      setError(err.message || 'Ошибка при оформлении заказа');
+    } finally {
+      setLoading(false);
     }
-
-    clearCart()
-    navigate('/orders/confirmation')
-  } catch (err: any) {
-    console.error('Checkout error:', err)
-    setError(err.message || 'Ошибка при оформлении заказа')
-  } finally {
-    setLoading(false)
-  }
-}
-
+  };
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
@@ -286,12 +255,12 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                 
                 <div className="space-y-4">
                   {items.map((item) => (
-                    <div key={item.product.id} className="flex justify-between">
+                    <div key={item.id} className="flex justify-between">
                       <div className="flex">
                         <span className="font-medium">{item.quantity} × </span>
-                        <span className="ml-2 truncate">{item.product.name}</span>
+                        <span className="ml-2 truncate">{item.name}</span>
                       </div>
-                      <span className="font-medium">${(item.product.price * item.quantity).toFixed(2)}</span>
+                      <span className="font-medium">${(item.price * item.quantity).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>

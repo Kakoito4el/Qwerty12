@@ -7,6 +7,7 @@ import { usePCBuilderStore, ComponentType } from '../../stores/pcBuilderStore';
 import { supabase } from '../../lib/supabase';
 import { Category, Product } from '../../types/supabase';
 import { useCartStore } from '../../stores/cartStore';
+import { createBuildAndAddToCart } from '../../lib/createBuildAndAddToCart';
 
 // Define component categories with their corresponding icons and descriptions
 const componentCategories: { [key in ComponentType]: { label: string; icon: React.ReactNode; description: string } } = {
@@ -51,9 +52,6 @@ const componentCategories: { [key in ComponentType]: { label: string; icon: Reac
     description: 'Keeps your CPU at safe operating temperatures.'
   }
 };
-
-
-
 const PCBuilderPage: React.FC = () => {
   const { build, addComponent, removeComponent, clearBuild, getBuildTotal } = usePCBuilderStore();
   const [categories, setCategories] = useState<{[key: string]: Category}>({});
@@ -182,7 +180,6 @@ const PCBuilderPage: React.FC = () => {
               </div>
             </div>
           </div>
-          
           {/* Build Summary */}
           <div className="lg:w-1/3">
             <div className="bg-white rounded-lg shadow-md p-6 sticky top-20">
@@ -259,6 +256,29 @@ const PCBuilderPage: React.FC = () => {
                   {Object.keys(build).length} of {Object.keys(componentCategories).length} components selected
                 </p>
               </div>
+              {isComplete && (
+  <div className="mt-4 flex justify-end">
+    <Button
+      variant="outline"
+      size="sm"
+onClick={async () => {
+  try {
+    const selectedProducts = Object.values(build).filter(Boolean) as Product[];
+    await createBuildAndAddToCart(selectedProducts, addItem);
+    navigate('/cart');
+  } catch (err) {
+    console.error('Ошибка при создании сборки:', err);
+    alert('Не удалось сохранить сборку. Попробуйте позже.');
+  }
+}}
+
+      className="text-xs text-green-600 hover:bg-green-100 border border-green-600"
+    >
+      <ShoppingCart className="h-3 w-3 mr-1" />
+      Сборку в корзину
+    </Button>
+  </div>
+)}
             </div>
           </div>
         </div>

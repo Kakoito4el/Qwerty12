@@ -24,7 +24,7 @@ const CategoryPage: React.FC = () => {
         const { data: categoryData, error: categoryError } = await supabase
           .from('categories')
           .select('*')
-          .limit(20) 
+          .limit(100) 
           .eq('id', id)
           .single();
         
@@ -34,7 +34,7 @@ const CategoryPage: React.FC = () => {
         const { data: productsData, error: productsError } = await supabase
           .from('products')
           .select('*')
-          .limit(20) 
+          .limit(100) 
           .eq('category_id', id)
           .order('name');
         

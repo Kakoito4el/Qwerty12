@@ -42,22 +42,30 @@ const ComponentSelectPage: React.FC = () => {
       setLoading(true);
       
       try {
-        // In a real application, you would have a proper category system
-        // This is a simplified approach for the demonstration
         let query = supabase
           .from('products')
           .select('*');
         
-        // Apply category filter based on component type
-        // This would use category IDs in a real application
-        const categoryTerms = componentCategoryMap[componentType as ComponentType];
-        if (categoryTerms.length > 0) {
-          // In a real app with a category system, you'd use a foreign key relation
-          // This is a simplified approach using product name filtering for the demo
-          query = query.or(
-            categoryTerms.map(term => `name.ilike.%${term}%`).join(',')
-          );
-        }
+const categoryIdMap: Record<ComponentType, string> = {
+  cpu: '4ae152c5-c1b5-4b91-a87d-873dec685ec2',
+  motherboard: '6d14af22-d79a-44fa-a3c6-295c365dd02c',
+  gpu: '2febcbae-0ef2-4809-a6a0-5fcb5e41f748',
+  ram: '7599425b-c362-439d-abd0-8681082b3064',
+  storage: 'fd48a532-b634-4fbf-9c14-0cd59cf4bb3c',
+  psu: '9c7d328d-b2eb-4498-95ff-69b88084d42d',
+  case: 'c79e71ff-ce88-452a-9ddc-b652f9f33b33',
+  cooling: 'd4cba72d-cb91-4176-be60-115239e427cb'
+};
+
+const categoryId = categoryIdMap[componentType as ComponentType];
+if (!categoryId) {
+  console.error('No categoryId found for componentType:', componentType);
+  setProducts([]);
+  setLoading(false);
+  return;
+}
+
+query = query.eq('category_id', categoryId);
         
         // Apply price range filter
         if (priceRange.min > 0) {
@@ -94,14 +102,13 @@ const ComponentSelectPage: React.FC = () => {
 
   const handleSelectComponent = (product: Product) => {
     if (!componentType) return;
-    
+    console.log('🧱 Выбран компонент:', product);
     addComponent(componentType as ComponentType, product);
     navigate('/pc-builder');
   };
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // The search is handled by the useEffect when searchQuery changes
   };
 
   const clearFilters = () => {

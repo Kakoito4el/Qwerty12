@@ -15,26 +15,28 @@ const LoginPage: React.FC = () => {
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  setError(null);
+  setLoading(true);
+  
+  try {
+    const { error } = await signIn(email, password);
     
-    try {
-      const { error } = await signIn(email, password);
-      
-      if (error) {
-        setError(error.message);
-      } else {
-        navigate('/');
-      }
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
+    if (error) {
+      setError(error.message);
+    } else {
+      const redirectPath = localStorage.getItem('redirectPath') || '/';
+      localStorage.removeItem('redirectPath'); // удалим, чтобы не перенаправляло в будущем
+      navigate(redirectPath, { replace: true });
     }
-  };
+  } catch (err) {
+    setError('An unexpected error occurred. Please try again.');
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <Layout>

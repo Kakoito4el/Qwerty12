@@ -30,6 +30,7 @@ export interface Database {
           email_confirmed_at?: string | null;
         };
       };
+
       categories: {
         Row: {
           id: string;
@@ -53,9 +54,9 @@ export interface Database {
           created_at?: string;
         };
       };
+
       products: {
         Row: {
-          category: any;
           id: string;
           name: string;
           description: string;
@@ -89,6 +90,7 @@ export interface Database {
           created_at?: string;
         };
       };
+
       orders: {
         Row: {
           id: string;
@@ -157,11 +159,13 @@ export interface Database {
           updated_at?: string;
         };
       };
+
       order_items: {
         Row: {
           id: string;
           order_id: string;
-          product_id: string;
+          product_id: string | null;
+          build_id: string | null;
           quantity: number;
           price: number;
           created_at: string;
@@ -169,7 +173,8 @@ export interface Database {
         Insert: {
           id?: string;
           order_id: string;
-          product_id: string;
+          product_id?: string | null;
+          build_id?: string | null;
           quantity: number;
           price: number;
           created_at?: string;
@@ -177,13 +182,33 @@ export interface Database {
         Update: {
           id?: string;
           order_id?: string;
-          product_id?: string;
+          product_id?: string | null;
+          build_id?: string | null;
           quantity?: number;
           price?: number;
           created_at?: string;
         };
       };
+
+      pc_builds: {
+        Row: {
+          id: string;
+          components: string[]; // массив ID товаров
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          components: string[];
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          components?: string[];
+          created_at?: string;
+        };
+      };
     };
+
     Views: {};
     Functions: {};
     Enums: {};
@@ -191,13 +216,29 @@ export interface Database {
   };
 }
 
+// --- Типы, которые ты используешь в приложении ---
+
 export type User = Database['public']['Tables']['users']['Row'];
 export type Category = Database['public']['Tables']['categories']['Row'];
-export type Product = Database['public']['Tables']['products']['Row'];
+
+// Расширенный тип Product с вложенной категорией
+export type Product = Database['public']['Tables']['products']['Row'] & {
+  category?: Category;
+  
+};
+
 export type Order = Database['public']['Tables']['orders']['Row'];
 export type OrderItem = Database['public']['Tables']['order_items']['Row'];
+export type PCBuild = Database['public']['Tables']['pc_builds']['Row'];
 
-export type CartItem = {
-  product: Product;
+// Тип элемента в корзине
+export interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  image_url: string;
   quantity: number;
-};
+  isBuild?: boolean;     // Добавь это
+  buildId?: string;      // И это (уникальный id для сборки)
+  components?: Product[]; // 🟢 добавляем это
+}

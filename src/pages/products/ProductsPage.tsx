@@ -20,9 +20,18 @@ const ProductsPage: React.FC = () => {
   
   // Mobile filters visibility
   const [showFilters, setShowFilters] = useState(false);
-
+  const uniqueById = (arr: Product[]) => {
+  const seen = new Set();
+  return arr.filter(item => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+};
   useEffect(() => {
+    let ignore = false;
     const fetchData = async () => {
+      if (ignore) return; // защита
       setLoading(true);
       
       try {
@@ -63,8 +72,8 @@ const ProductsPage: React.FC = () => {
         query = query.order(sortField, { ascending: sortDirection === 'asc' });
         
         const { data: productsData } = await query;
-        
-        setProducts(productsData || []);
+        console.log("Unique filtered:", uniqueById(productsData || []));
+        setProducts(uniqueById(productsData || []));
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -73,6 +82,9 @@ const ProductsPage: React.FC = () => {
     };
     
     fetchData();
+      return () => {
+    ignore = true;
+  };
   }, [selectedCategory, priceRange, sortBy, searchQuery]);
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {

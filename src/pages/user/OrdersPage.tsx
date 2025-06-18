@@ -28,11 +28,11 @@ const OrdersPage: React.FC = () => {
 
     const fetchOrders = async () => {
       try {
-        const { data, error } = await supabase
-          .from('orders_summary')
-          .select('id, user_id, created_at, status, total_price,shipping_summary')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+const { data, error } = await supabase
+  .from('orders_summary')
+  .select('id, user_id, created_at, status, total_price, items') // ✅ правильные поля
+  .eq('user_id', user.id)
+  .order('created_at', { ascending: false });
 
         if (error) throw error;
         setOrders(data || []);

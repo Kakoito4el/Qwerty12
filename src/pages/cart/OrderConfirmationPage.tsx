@@ -4,46 +4,50 @@ import { CheckCircle, Package, Clock, CreditCard } from 'lucide-react';
 import Layout from '../../components/Layout/Layout';
 import Button from '../../components/UI/Button';
 import { supabase } from '../../lib/supabase';
-import { Order, OrderItem, Product } from '../../types/supabase';
+import { Order, OrderItem, Product, PCBuild } from '../../types/supabase';
+
+type ExtendedOrderItem = OrderItem & {
+  product: Product | null;
+  custom_build?: PCBuild | null;
+};
 
 const OrderConfirmationPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
-  const [orderItems, setOrderItems] = useState<(OrderItem & { product: Product })[]>([]);
+  const [orderItems, setOrderItems] = useState<ExtendedOrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
       if (!id) return;
-      
+
       try {
-// Вместо select('*')
-const { data: orderData, error: orderError } = await supabase
-  .from('orders')
-  .select(`
-    *,
-    shipping_info,
-    payment_info
-  `)
-  .eq('id', id)
-  .single()
-          
+        const { data: orderData, error: orderError } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', id)
+          .single();
+
         if (orderError) throw orderError;
-        
-        // Fetch order items with product details
+
         const { data: itemsData, error: itemsError } = await supabase
           .from('order_items')
           .select(`
             *,
-            product:products(*)
+            product:product_id (
+              id, name, image_url
+            ),
+            custom_build:build_id (
+              id, components
+            )
           `)
           .eq('order_id', id);
-          
+
         if (itemsError) throw itemsError;
-        
+
         setOrder(orderData);
-        setOrderItems(itemsData as any);
+        setOrderItems(itemsData as ExtendedOrderItem[]);
       } catch (err: any) {
         console.error('Error fetching order:', err);
         setError(err.message || 'Failed to load order details');
@@ -51,7 +55,7 @@ const { data: orderData, error: orderError } = await supabase
         setLoading(false);
       }
     };
-    
+
     fetchOrderDetails();
   }, [id]);
 
@@ -93,7 +97,7 @@ const { data: orderData, error: orderError } = await supabase
               Thank you for your purchase. Your order has been received and is being processed.
             </p>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div className="flex justify-between items-center mb-6">
               <div>
@@ -104,7 +108,7 @@ const { data: orderData, error: orderError } = await supabase
                 {order.status}
               </div>
             </div>
-            
+
             <div className="mb-8">
               <div className="flex items-center mb-4">
                 <Clock className="h-5 w-5 text-gray-400 mr-2" />
@@ -115,55 +119,62 @@ const { data: orderData, error: orderError } = await supabase
                 <span className="text-gray-700">Shipping to: {order.shipping_info.address}</span>
               </div>
               <div className="flex items-center">
-                <p><CreditCard className="h-5 w-5 text-gray-400 mr-2" />
-   Payment: **** **** **** {order.payment_info.card_number.slice(-4)}
-</p>
-<p><Package className="h-5 w-5 text-gray-400 mr-2" />
-   Shipping to: {order.shipping_info.address}, {order.shipping_info.city}, {order.shipping_info.country}
-</p>
-                <span className="text-gray-700">Payment method: {order.payment_info.method.replace('_', ' ')}</span>
+                <CreditCard className="h-5 w-5 text-gray-400 mr-2" />
+                <p className="text-gray-700">
+                  Payment: **** **** **** {order.payment_info.card_number.slice(-4)}
+                </p>
               </div>
             </div>
-            
+
             <h3 className="text-lg font-medium text-gray-900 mb-4">Order Items</h3>
             <div className="border rounded-md overflow-hidden mb-6">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Product
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Quantity
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Price
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Quantity</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Price</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {orderItems.map((item) => (
                     <tr key={item.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="h-10 w-10 flex-shrink-0">
-                            <img
-                              className="h-10 w-10 rounded object-cover"
-                              src={item.product.image_url}
-                              alt={item.product.name}
-                            />
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {item.product.name}
+                        {item.product ? (
+                          <div className="flex items-center">
+                            <div className="h-10 w-10 flex-shrink-0">
+                              <img
+                                className="h-10 w-10 rounded object-cover"
+                                src={item.product.image_url}
+                                alt={item.product.name}
+                              />
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {item.product.name}
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        ) : item.custom_build ? (
+                          <div className="ml-1">
+                            <div className="text-sm font-medium text-gray-900">💻 Custom PC Build</div>
+                            <button
+                              className="text-blue-600 hover:underline text-xs mt-1"
+                              onClick={() =>
+                                alert(`Components: ${item.custom_build?.components.join(', ')}`)
+                              }
+                            >
+                              View Components
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-500">Unknown item</div>
+                        )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
+                      <td className="px-6 py-4 text-center text-sm text-gray-500">
                         {item.quantity}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
+                      <td className="px-6 py-4 text-right text-sm text-gray-500">
                         ${item.price.toFixed(2)}
                       </td>
                     </tr>
@@ -171,10 +182,10 @@ const { data: orderData, error: orderError } = await supabase
                 </tbody>
               </table>
             </div>
-            
+
             <div className="border-t pt-4">
               <div className="flex justify-between mb-2">
-                <span className="text-gray-600">Subtotal_price</span>
+                <span className="text-gray-600">Subtotal</span>
                 <span className="font-medium">${(order.total_price / 1.1).toFixed(2)}</span>
               </div>
               <div className="flex justify-between mb-2">
@@ -191,7 +202,7 @@ const { data: orderData, error: orderError } = await supabase
               </div>
             </div>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link to="/orders">
               <Button variant="outline" fullWidth>

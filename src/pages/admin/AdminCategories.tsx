@@ -4,6 +4,8 @@ import Button from '../../components/UI/Button';
 import Input from '../../components/UI/Input';
 import { supabase } from '../../lib/supabase';
 import { Category } from '../../types/supabase';
+import { useCategoryModalStore } from '../../store/categoryModalStore';
+import { useModalStore } from '../../store/useModalStore';
 
 interface CategoryFormData {
   id?: string;
@@ -16,22 +18,31 @@ const AdminCategories: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentCategory, setCurrentCategory] = useState<Category | null>(null);
-  const [formData, setFormData] = useState<CategoryFormData>({
-    name: '',
-    description: '',
-    image_url: ''
-  });
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // State for selected categories for bulk actions
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
 
-  // Select all handler
+  // Используем хранилища Zustand
+  const {
+    isAddModalOpen,
+    isEditModalOpen,
+    openAddModal,
+    closeAddModal,
+    openEditModal,
+    closeEditModal
+  } = useModalStore();
+
+  const {
+    name,
+    description,
+    imageUrl,
+    setField,
+    reset
+  } = useCategoryModalStore();
+
   const allSelected = categories.length > 0 && selectedIds.length === categories.length;
+
   const selectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
       setSelectedIds(categories.map(c => c.id));
@@ -40,7 +51,6 @@ const AdminCategories: React.FC = () => {
     }
   };
 
-  // Toggle selection for a single category
   const toggleSelect = (id: string) => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(_id => _id !== id) : [...prev, id]
@@ -58,9 +68,7 @@ const AdminCategories: React.FC = () => {
         .from('categories')
         .select('*')
         .order('name');
-        
       if (error) throw error;
-      
       setCategories(data || []);
     } catch (err) {
       console.error('Error fetching categories:', err);
@@ -71,9 +79,8 @@ const AdminCategories: React.FC = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (searchQuery.trim()) {
-      const filtered = categories.filter(category => 
+      const filtered = categories.filter(category =>
         category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (category.description && category.description.toLowerCase().includes(searchQuery.toLowerCase()))
       );
@@ -84,103 +91,143 @@ const AdminCategories: React.FC = () => {
   };
 
   const handleAdd = () => {
-    setFormData({
-      name: '',
-      description: '',
-      image_url: ''
-    });
+    reset();
     setErrors({});
-    setIsAddModalOpen(true);
+    setCurrentCategory(null);
+    openAddModal();
   };
 
   const handleEdit = (category: Category) => {
     setCurrentCategory(category);
-    setFormData({
-      id: category.id,
-      name: category.name,
-      description: category.description || '',
-      image_url: category.image_url || ''
-    });
+    setField('name', category.name);
+    setField('description', category.description || '');
+    setField('imageUrl', category.image_url || '');
     setErrors({});
-    setIsEditModalOpen(true);
+    openEditModal();
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this category?')) {
-      try {
-        const { error } = await supabase
-          .from('categories')
-          .delete()
-          .eq('id', id);
-          
-        if (error) throw error;
-        
-        setCategories(categories.filter(category => category.id !== id));
-      } catch (err) {
-        console.error('Error deleting category:', err);
+    if (!confirm('Are you sure you want to delete this category?')) return;
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error('Not authenticated');
+
+      const { data: userData } = await supabase
+        .from('users')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
+      if (!userData?.is_admin) throw new Error('Admin privileges required');
+
+      const { count } = await supabase
+        .from('products')
+        .select('*', { count: 'exact' })
+        .eq('category_id', id);
+
+      if (count && count > 0) {
+        alert('Cannot delete category with products. Please move or delete products first.');
+        return;
       }
+
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+
+      setCategories(categories.filter(category => category.id !== id));
+      fetchCategories();
+    } catch (err) {
+      console.error('Error deleting category:', err);
+      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
-    }
-    
+    if (!name.trim()) newErrors.name = 'Name is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setField(name as 'name' | 'description' | 'imageUrl', value);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
+    if (!validateForm()) return;
+
     try {
+      const formData = {
+        name,
+        description,
+        image_url: imageUrl
+      };
+
       if (currentCategory) {
-        // Update
         const { error } = await supabase
           .from('categories')
-          .update({
-            name: formData.name,
-            description: formData.description,
-            image_url: formData.image_url
-          })
+          .update(formData)
           .eq('id', currentCategory.id);
-          
         if (error) throw error;
-        
-        setCategories(categories.map(c => (
+
+        setCategories(categories.map(c =>
           c.id === currentCategory.id ? { ...c, ...formData } : c
-        )));
-        setIsEditModalOpen(false);
+        ));
+
+        closeEditModal();
       } else {
-        // Add
         const { data, error } = await supabase
           .from('categories')
-          .insert([{
-            name: formData.name,
-            description: formData.description,
-            image_url: formData.image_url
-          }])
+          .insert([formData])
           .select();
-          
         if (error) throw error;
-        
+
         setCategories([...categories, data[0]]);
-        setIsAddModalOpen(false);
+        closeAddModal();
       }
+      
+      reset();
     } catch (err) {
       console.error('Error saving category:', err);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selectedIds.length} categories?`)) return;
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error('Not authenticated');
+
+      const { data: userData } = await supabase
+        .from('users')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
+      if (!userData?.is_admin) throw new Error('Admin privileges required');
+
+      const { count } = await supabase
+        .from('products')
+        .select('*', { count: 'exact' })
+        .in('category_id', selectedIds);
+      if (count && count > 0) {
+        alert('Cannot delete categories with products. Please move or delete products first.');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .in('id', selectedIds);
+      if (error) throw error;
+
+      fetchCategories();
+      setSelectedIds([]);
+    } catch (err) {
+      console.error('Error during bulk delete:', err);
+      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
@@ -205,15 +252,7 @@ const AdminCategories: React.FC = () => {
               <Button onClick={() => setBulkEditOpen(true)}>Bulk Edit</Button>
               <Button
                 variant="danger"
-                onClick={async () => {
-                  if (!confirm(`Delete ${selectedIds.length} categories?`)) return;
-                  await Promise.all(
-                    selectedIds.map(id =>
-                      supabase.from('categories').delete().eq('id', id)
-                    )
-                  );
-                  fetchCategories();
-                }}
+                onClick={handleBulkDelete}
               >
                 Bulk Delete
               </Button>
@@ -361,16 +400,61 @@ const AdminCategories: React.FC = () => {
                   </h3>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                  {/* Здесь ваши поля формы */}
+                  <div>
+                    <Input
+                      label="Category Name"
+                      type="text"
+                      name="name"
+                      value={name}
+                      onChange={handleFormChange}
+                      error={errors.name}
+                      fullWidth
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      name="description"
+                      value={description}
+                      onChange={handleFormChange}
+                      rows={3}
+                      className="px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm w-full"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Input
+                      label="Image URL"
+                      type="text"
+                      name="imageUrl"
+                      value={imageUrl}
+                      onChange={handleFormChange}
+                      fullWidth
+                    />
+                    {imageUrl && (
+                      <div className="mt-2">
+                        <p className="text-sm text-gray-500 mb-1">Preview:</p>
+                        <img
+                          src={imageUrl}
+                          alt="Preview"
+                          className="h-32 w-32 object-cover rounded border border-gray-300"
+                        />
+                      </div>
+                    )}
+                  </div>
+
                   <div className="flex justify-end space-x-4">
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() =>
-                        isAddModalOpen
-                          ? setIsAddModalOpen(false)
-                          : setIsEditModalOpen(false)
-                      }
+                      onClick={() => {
+                        if (isAddModalOpen) closeAddModal();
+                        else closeEditModal();
+                        reset();
+                      }}
                     >
                       Cancel
                     </Button>
@@ -387,6 +471,5 @@ const AdminCategories: React.FC = () => {
     </>
   );
 };
-
 
 export default AdminCategories;

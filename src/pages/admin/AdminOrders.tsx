@@ -28,35 +28,25 @@ const AdminOrders: React.FC = () => {
   async function fetchOrders() {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('orders')
-.select(`
-  id,
-  created_at,
-  status,
-  total_price,
-  shipping_info,
-  payment_info,
-  user:users (
+const { data, error } = await supabase
+  .from('orders')
+  .select(`
     id,
-    email,
-    first_name,
-    last_name,
     created_at,
-    is_admin
-  ),
-  items:order_items (
-    id,
-    quantity,
-    product:products (
+    status,
+    total_price,
+    shipping_info,
+    payment_info,
+    users:users!orders_user_id_fkey (
       id,
-      name,
-      price
+      email,
+      first_name,
+      last_name,
+      created_at,
+      is_admin
     )
-  )
-`)
-        .order('created_at', { ascending: false });
-
+  `)
+  .order('created_at', { ascending: false });
       if (error) throw error;
 
       const summary = data as unknown as OrderWithDetails[];
@@ -108,10 +98,10 @@ const mapped: OrderWithDetails[] = summary.map((o) => ({
   const handleViewOrder = async (order: OrderWithDetails) => {
     setLoading(true);
     try {
-      const { data: items, error: itemsError } = await supabase
-        .from('order_items')
-        .select(`*, product:products(*)`)
-        .eq('order_id', order.id);
+const { data: items, error: itemsError } = await supabase
+  .from('order_items')
+  .select(`*, product:products(*)`)
+  .eq('order_id', order.id);
 
       if (itemsError) throw itemsError;
 

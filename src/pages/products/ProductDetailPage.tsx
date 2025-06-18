@@ -15,32 +15,49 @@ const ProductDetailPage: React.FC = () => {
   const { addItem } = useCartStore();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchProduct = async () => {
-      if (!id) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('products')
-          .select(`
-            *,
-            category:categories(*)
-          `)
-          .eq('id', id)
-          .single();
-          
-        if (error) throw error;
-        
-        setProduct(data);
-      } catch (err) {
-        console.error('Error fetching product:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchProduct();
-  }, [id]);
+useEffect(() => {
+  const fetchProduct = async () => {
+    if (!id) return;
+
+    try {
+const { data, error } = await supabase
+  .from('products')
+  .select(`
+    id,
+    name,
+    description,
+    price,
+    image_url,
+    stock,
+    specifications,
+    created_at,
+    category_id,
+    category:categories (
+      id,
+      name,
+      description,
+      image_url,
+      created_at
+    )
+  `)
+  .eq('id', id)
+  .single();
+
+      if (error) throw error;
+
+      setProduct({
+  ...data,
+  category: Array.isArray(data.category) ? data.category[0] : data.category
+});
+    } catch (err) {
+      console.error('Error fetching product:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchProduct();
+}, [id]);
 
   const handleAddToCart = () => {
     if (product) {

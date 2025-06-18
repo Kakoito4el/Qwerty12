@@ -7,4 +7,13 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  server: {
+    hmr: {
+      overlay: false,      // отключает ошибочный оверлей
+      protocol: 'ws',      // стабильный протокол HMR
+    },
+    watch: {
+      usePolling: true,    // устойчивость при нестабильной сети/вкладке
+    },
+  },
 });
