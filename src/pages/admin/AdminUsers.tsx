@@ -27,7 +27,7 @@ export default function AdminUsers() {
     try {
       const token = await supabase.auth.getSession()
         .then(session => session.data.session?.access_token)
-      const res = await fetch('http://localhost:3001/admin/users', {
+      const res = await fetch('https://server-6htb.onrender.com/', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -62,7 +62,7 @@ export default function AdminUsers() {
       const token = await supabase.auth.getSession()
         .then(session => session.data.session?.access_token)
       const res = await fetch(
-        `http://localhost:3001/admin/users/${u.id}/toggle-admin`,
+        `https://server-6htb.onrender.com//admin/users/${u.id}/toggle-admin`,
         { 
           method: 'POST',
           headers: {
